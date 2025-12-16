@@ -23,7 +23,7 @@
         │  HAProxy   │
         └───┬─────┬──┘
             │     │
-   ┌────────▼─┐ ┌─▼────────┐
+   ┌────────▼──┐ ┌─▼─────────┐
    │ DB Primary│ │ DB Replica│
    └───────────┘ └───────────┘
 
@@ -243,6 +243,13 @@ Pourquoi peut-on lire une ancienne valeur ?
 - latence de réplication
 - effet du cache
 
+
+#### ----- Réponse -----
+
+Cela vient de 2 choses : 
+- La latence que prend le serveur "slave" à se mettre à jour suivant la mise à jour sur la DB "master"
+- Le cache Redis, qui garde les données en mémoire pendant une durée définie (ici 1 minute), qui permet de fetch des données sans faire de requête à la DB (accélérant les requêtes), mais ne tenant pas compte des modifications récentes.
+
 ---
 
 # PARTIE E — Résilience : pannes contrôlées (30 min)
@@ -324,9 +331,18 @@ Relancer une écriture via l’API.
 ## 📝 Questions finales (rapport)
 
 1. Différence entre réplication et haute disponibilité ?
+- La réplication est le fait de dupliquer une base de données en plusieurs exemplaires sur plusieurs serveurs pour prendre la relève si un venait à tomber. La haute disponibilité est lorsque la disponibilité de cette BD est suffisamment élevée notamment grâce à la réplication.
 2. Qu’est-ce qui est manuel ici ? Automatique ?
+- Automatique :
+  - Cache Redis
+  - Réplication
+- Manuel :
+  - Aucun nouveau primary si l'actuel tombe
 3. Risques cache + réplication ?
+- Le risque est d'avoir des données pas à jour, lors de la consultation, mais surtout lorsqu'on va vouloir ensuite modifier les données en base
+- Si Redis tombe, tout est redirigé sur la DB, augmentant énormément la charge
 4. Comment améliorer cette architecture en production ?
+- Rendre obsolète le cache après avoir modifié une valeur (au moins pour la clé liée)
 
 ---
 

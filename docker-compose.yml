@@ -1,0 +1,58 @@
+services:
+  db-primary:
+    image: bitnami/postgresql:latest
+    environment:
+      - POSTGRESQL_USERNAME=jus_de_pom
+      - POSTGRESQL_PASSWORD=jus_de_pom_pwd
+      - POSTGRESQL_DATABASE=jus_de_pomdb
+      - POSTGRESQL_REPLICATION_MODE=master
+      - POSTGRESQL_REPLICATION_USER=repl
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_pwd
+    ports:
+      - "5432:5432"
+
+  db-replica:
+    image: bitnami/postgresql:latest
+    depends_on:
+      - db-primary
+    environment:
+      - POSTGRESQL_USERNAME=jus_de_pom
+      - POSTGRESQL_PASSWORD=jus_de_pom_pwd
+      - POSTGRESQL_DATABASE=jus_de_pomdb
+      - POSTGRESQL_REPLICATION_MODE=slave
+      - POSTGRESQL_MASTER_HOST=db-primary
+      - POSTGRESQL_MASTER_PORT_NUMBER=5432
+      - POSTGRESQL_REPLICATION_USER=repl
+      - POSTGRESQL_REPLICATION_PASSWORD=repl_pwd
+    ports:
+      - "5433:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  haproxy:
+    image: haproxy:2.9
+    depends_on:
+      - db-primary
+      - db-replica
+    ports:
+      - "5439:5432"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+  api:
+    build: .
+    depends_on:
+      - haproxy
+      - db-replica
+      - redis
+    ports:
+      - "8000:8000"
+    environment:
+      - PRIMARY_DSN=host=haproxy port=5432 dbname=jus_de_pomdb user=jus_de_pom password=jus_de_pom_pwd
+      - REPLICA_DSN=host=db-replica port=5432 dbname=jus_de_pomdb user=jus_de_pom password=jus_de_pom_pwd
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_TTL_SECONDS=60
